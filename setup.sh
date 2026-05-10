@@ -50,11 +50,11 @@ SSHEOF
 chmod 600 ~/.ssh/config
 
 info "Testing GitHub connection..."
-if ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
-    info "GitHub connection OK"
-else
+until ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; do
     prompt "Could not verify GitHub connection — make sure the deploy key was added correctly"
-fi
+    read -p "Press Enter to try again..."
+done
+info "GitHub connection OK"
 
 echo ""
 info "Setup complete!"
