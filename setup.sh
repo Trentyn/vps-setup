@@ -57,4 +57,13 @@ done
 info "GitHub connection OK"
 
 echo ""
+read -p "Clone a repository? (y/n): " CLONE
+if [[ "$CLONE" == "y" ]]; then
+    read -p "GitHub username: " OWNER
+    read -p "Repository name: " REPO
+    git clone git@github.com:$OWNER/$REPO.git ~/
+    info "Cloned to ~/$REPO"
+fi
+
+echo ""
 info "Setup complete!"
