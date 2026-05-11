@@ -66,4 +66,14 @@ if [[ "$CLONE" == "y" ]]; then
 fi
 
 echo ""
+read -p "Configure git identity for pushing from this VPS? (y/n): " GITCONFIG
+if [[ "$GITCONFIG" == "y" ]]; then
+    read -p "Email: " GIT_EMAIL
+    read -p "Name: " GIT_NAME
+    git config --global user.email "$GIT_EMAIL"
+    git config --global user.name "$GIT_NAME"
+    info "Git identity set"
+fi
+
+echo ""
 info "Setup complete!"
