@@ -21,8 +21,12 @@ fi
 info "Installing curl..."
 apt install -y curl
 
-info "Installing Docker..."
-curl -fsSL https://get.docker.com | sh
+if command -v docker &>/dev/null; then
+    info "Docker already installed — skipping"
+else
+    info "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+fi
 
 if [[ -n "$SUDO_USER" ]]; then
     usermod -aG docker "$SUDO_USER"
@@ -90,7 +94,7 @@ if [[ "$CLONE" == "y" ]]; then
     # Convert https://github.com/user/repo to git@github.com:user/repo.git
     SSH_URL=$(echo "$REPO_URL" | sed 's|https://github.com/|git@github.com:|' | sed 's|\.git$||')".git"
     REPO=$(basename "$REPO_URL" .git)
-    git clone "$SSH_URL" ~/
+    git clone "$SSH_URL" ~/"$REPO"
     info "Cloned to ~/$REPO"
 fi
 
