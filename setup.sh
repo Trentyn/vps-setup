@@ -26,9 +26,12 @@ STEP_ORDER=(
 usage() {
     cat <<'EOF'
 Usage:
-  sudo bash setup.sh
-  sudo bash setup.sh --all
-  sudo bash setup.sh --step packages --step docker --step deploy_key
+  bash setup.sh
+  bash setup.sh --all
+  bash setup.sh --step packages --step docker --step deploy_key
+
+Run this script from a root shell.
+If sudo exists, `sudo bash setup.sh` also works.
 
 Available steps:
   packages      Install missing base packages

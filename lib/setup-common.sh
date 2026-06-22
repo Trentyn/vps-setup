@@ -14,7 +14,7 @@ die()   { error "$*"; exit 1; }
 
 require_root() {
     if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
-        error "Run this script as root: sudo bash $0"
+        error "Run this script from a root shell: bash $0"
         exit 1
     fi
 }
