@@ -1,46 +1,56 @@
 #!/bin/bash
 
-set -e
+set -Eeuo pipefail
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-info()  { echo -e "${GREEN}[✓]${NC} $1"; }
-error() { echo -e "${RED}[✗]${NC} $1"; }
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=lib/setup-common.sh
+source "$SCRIPT_DIR/lib/setup-common.sh"
 
 trap 'error "Failed at line $LINENO."' ERR
 
-cat > ~/.bashrc << 'EOF'
+TARGET_USER="${1:-$(detect_target_user)}"
+TARGET_HOME=$(target_home "$TARGET_USER")
+BASHRC_PATH="$TARGET_HOME/.bashrc"
+BACKUP_PATH="$TARGET_HOME/.bashrc.bak.$(date +%Y%m%d%H%M%S)"
+
+write_bashrc() {
+    cat <<'EOF'
 # ~/.bashrc: executed by bash(1) for non-login shells.
 
-# Note: PS1 and umask are already set in /etc/profile. You should not
-# need this unless you want different defaults for root.
-# PS1='${debian_chroot:+($debian_chroot)}\h:\w\$ '
-# umask 022
-
-# You may uncomment the following lines if you want `ls' to be colorized:
-# export LS_OPTIONS='--color=auto'
-# eval "$(dircolors)"
-# alias ls='ls $LS_OPTIONS'
-# alias ll='ls $LS_OPTIONS -l'
-# alias l='ls $LS_OPTIONS -lA'
-#
-# Some more alias to avoid making mistakes:
-# alias rm='rm -i'
-# alias cp='cp -i'
-# alias mv='mv -i'
-
 HISTCONTROL=ignoreboth:erasedups
+shopt -s histappend
 
-# Console visuals
 parse_git_branch() {
-  git branch 2>/dev/null | grep '*' | sed 's/* / (/;s/$/)/'
+  git branch 2>/dev/null | grep '\*' | sed 's/\* / (/;s/$/)/'
 }
 
 PS1='\[\e[1;31m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\[\e[1;33m\]$(parse_git_branch)\[\e[0m\]\$ '
-export PATH="$HOME/.local/bin:$PATH"
-EOF
 
-info "~/.bashrc updated"
-info "Run 'source ~/.bashrc' to apply changes in the current session"
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+EOF
+}
+
+if [[ -f "$BASHRC_PATH" ]]; then
+    warn "Existing bashrc found: $BASHRC_PATH"
+    if ! confirm "Replace it with the project template?"; then
+        warn "bashrc update skipped"
+        exit 0
+    fi
+    cp "$BASHRC_PATH" "$BACKUP_PATH"
+    info "Backup created: $BACKUP_PATH"
+else
+    if ! confirm "Create bashrc for $TARGET_USER?"; then
+        warn "bashrc creation skipped"
+        exit 0
+    fi
+fi
+
+write_bashrc > "$BASHRC_PATH"
+chown "$TARGET_USER:$TARGET_USER" "$BASHRC_PATH"
+chmod 644 "$BASHRC_PATH"
+
+info "$BASHRC_PATH updated"
+info "Run 'source ~/.bashrc' in the target shell to apply changes"
