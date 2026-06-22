@@ -10,6 +10,7 @@ info()  { echo -e "${GREEN}[✓]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*" >&2; }
 note()  { echo -e "${BLUE}[-]${NC} $*"; }
+die()   { error "$*"; exit 1; }
 
 require_root() {
     if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -61,14 +62,26 @@ detect_target_user() {
 
 target_home() {
     local user_name="$1"
+    local home_dir
+
+    home_dir=$(getent passwd "$user_name" | cut -d: -f6)
+    if [[ -n "$home_dir" ]]; then
+        printf '%s\n' "$home_dir"
+        return
+    fi
+
     eval printf '%s\n' "~${user_name}"
 }
 
 run_as_target_user() {
     if [[ "$CURRENT_USER" == "root" ]]; then
         "$@"
-    else
+    elif command_exists sudo; then
         sudo -u "$CURRENT_USER" "$@"
+    elif command_exists runuser; then
+        runuser -u "$CURRENT_USER" -- "$@"
+    else
+        die "Neither sudo nor runuser is available to switch to $CURRENT_USER"
     fi
 }
 
@@ -101,45 +114,26 @@ ensure_line_in_file() {
     fi
 }
 
-normalize_github_repo_url() {
-    local repo_url="$1"
+append_block_to_file() {
+    local block="$1"
+    local file_path="$2"
 
-    if [[ "$repo_url" =~ ^git@ ]]; then
-        printf '%s\n' "$repo_url"
-        return
-    fi
-
-    if [[ "$repo_url" =~ ^https://github\.com/([^/]+)/([^/]+?)(\.git)?/?$ ]]; then
-        printf 'git@github.com:%s/%s.git\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-        return
-    fi
-
-    printf '%s\n' "$repo_url"
+    {
+        [[ -f "$file_path" ]] && cat "$file_path"
+        printf '\n%s\n' "$block"
+    } > "${file_path}.tmp"
+    mv "${file_path}.tmp" "$file_path"
 }
 
-repo_name_from_url() {
-    local repo_url="$1"
-    local repo_name
+ensure_public_key_in_authorized_keys() {
+    local pub_path="$1"
+    local home_dir="$2"
+    local user_name="$3"
 
-    repo_name=$(basename "$repo_url")
-    repo_name=${repo_name%.git}
-    printf '%s\n' "$repo_name"
-}
-
-repo_slug_from_url() {
-    local repo_url="$1"
-
-    if [[ "$repo_url" =~ ^https://github\.com/([^/]+)/([^/]+?)(\.git)?/?$ ]]; then
-        printf '%s/%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-        return
-    fi
-
-    if [[ "$repo_url" =~ ^git@github\.com:([^/]+)/([^/]+?)(\.git)?$ ]]; then
-        printf '%s/%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-        return
-    fi
-
-    printf '%s\n' "$repo_url"
+    ensure_line_in_file "$(cat "$pub_path")" "$home_dir/.ssh/authorized_keys"
+    chown "$user_name:$user_name" "$home_dir/.ssh/authorized_keys"
+    chmod 600 "$home_dir/.ssh/authorized_keys"
+    info "authorized_keys updated"
 }
 
 extract_repo_slug_from_github_ssh_output() {
