@@ -60,6 +60,8 @@ CURRENT_USER=$(detect_target_user)
 CURRENT_HOME=$(target_home "$CURRENT_USER")
 REPO_SLUG=""
 GITHUB_DEPLOY_HOST="github.com-deploy"
+SETUP_STATE_DIR="$CURRENT_HOME/.config/vps-setup"
+REPO_SLUG_FILE="$SETUP_STATE_DIR/repo-slug"
 
 step_exists() {
     local wanted="$1"
@@ -169,6 +171,7 @@ main() {
 
     info "Interactive VPS setup started"
     info "Target user: $CURRENT_USER"
+    load_repo_slug_state
 
     if [[ ${#requested_steps[@]} -gt 0 ]]; then
         local step

@@ -194,6 +194,7 @@ step_test_github_connection() {
         if grep -Eq 'successfully authenticated|Hi .*! You'\''ve successfully authenticated' <<< "$ssh_output"; then
             if REPO_SLUG=$(extract_repo_slug_from_github_ssh_output "$ssh_output"); then
                 info "GitHub deploy key verified for $REPO_SLUG"
+                save_repo_slug_state "$REPO_SLUG"
             else
                 warn "GitHub authenticated, but repository name was not detected"
             fi

@@ -181,3 +181,36 @@ extract_repo_slug_from_github_ssh_output() {
 
     return 1
 }
+
+valid_repo_slug() {
+    [[ "$1" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+}
+
+save_repo_slug_state() {
+    local repo_slug="$1"
+
+    if ! valid_repo_slug "$repo_slug"; then
+        warn "Repository slug has unexpected format and was not saved: $repo_slug"
+        return
+    fi
+
+    mkdir -p "$SETUP_STATE_DIR"
+    printf '%s\n' "$repo_slug" > "$REPO_SLUG_FILE"
+    chown "$CURRENT_USER:$CURRENT_USER" "$SETUP_STATE_DIR" "$REPO_SLUG_FILE"
+    chmod 700 "$SETUP_STATE_DIR"
+    chmod 600 "$REPO_SLUG_FILE"
+}
+
+load_repo_slug_state() {
+    local saved_slug
+
+    [[ -f "$REPO_SLUG_FILE" ]] || return 0
+
+    IFS= read -r saved_slug < "$REPO_SLUG_FILE" || true
+    if valid_repo_slug "$saved_slug"; then
+        REPO_SLUG="$saved_slug"
+        info "Saved repository detected: $REPO_SLUG"
+    else
+        warn "Ignoring invalid saved repository slug in $REPO_SLUG_FILE"
+    fi
+}
