@@ -139,7 +139,7 @@ step_ensure_deploy_key() {
 
 step_configure_github_ssh() {
     local ssh_config="$CURRENT_HOME/.ssh/config"
-    local managed_block
+    local managed_block marker_start marker_end
 
     if [[ ! -f "$CURRENT_HOME/.ssh/id_repo_deploy" ]]; then
         warn "Deploy key not found; SSH alias configuration skipped"
@@ -148,15 +148,18 @@ step_configure_github_ssh() {
 
     ensure_ssh_dir "$CURRENT_HOME" "$CURRENT_USER"
 
-    managed_block=$"# codex-vps-setup deploy key\nHost ${GITHUB_DEPLOY_HOST}\n    HostName github.com\n    User git\n    IdentitiesOnly yes\n    IdentityFile ~/.ssh/id_repo_deploy"
+    marker_start="# codex-vps-setup deploy key"
+    marker_end="# end codex-vps-setup deploy key"
+    printf -v managed_block '%s\nHost %s\n    HostName github.com\n    User git\n    IdentitiesOnly yes\n    IdentityFile ~/.ssh/id_repo_deploy\n%s' \
+        "$marker_start" "$GITHUB_DEPLOY_HOST" "$marker_end"
 
-    if file_contains "$ssh_config" "Host ${GITHUB_DEPLOY_HOST}"; then
+    if file_contains "$ssh_config" "$marker_end"; then
         info "SSH alias ${GITHUB_DEPLOY_HOST} already exists"
         return
     fi
 
     if confirm "Configure SSH alias ${GITHUB_DEPLOY_HOST} for deploy key?"; then
-        append_block_to_file "$managed_block" "$ssh_config"
+        replace_github_ssh_managed_block "$ssh_config" "$marker_start" "$marker_end" "$GITHUB_DEPLOY_HOST" "$managed_block"
         chown "$CURRENT_USER:$CURRENT_USER" "$ssh_config"
         chmod 600 "$ssh_config"
         info "Updated $ssh_config"

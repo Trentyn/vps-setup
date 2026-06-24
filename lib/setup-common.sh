@@ -125,6 +125,41 @@ append_block_to_file() {
     mv "${file_path}.tmp" "$file_path"
 }
 
+replace_github_ssh_managed_block() {
+    local file_path="$1"
+    local marker_start="$2"
+    local marker_end="$3"
+    local host_alias="$4"
+    local block="$5"
+
+    touch "$file_path"
+    awk -v marker_start="$marker_start" -v marker_end="$marker_end" -v host_alias="$host_alias" '
+        index($0, marker_start) == 1 {
+            if (index($0, "\\nHost " host_alias) > 0) {
+                next
+            }
+            in_managed_block = 1
+            next
+        }
+        in_managed_block {
+            if (index($0, marker_end) == 1) {
+                in_managed_block = 0
+                next
+            }
+            if ($0 == "Host " host_alias) {
+                next
+            }
+            if ($0 ~ /^[[:space:]]+(HostName|User|IdentitiesOnly|IdentityFile)[[:space:]]/) {
+                next
+            }
+            in_managed_block = 0
+        }
+        { print }
+    ' "$file_path" > "${file_path}.tmp"
+    printf '\n%s\n' "$block" >> "${file_path}.tmp"
+    mv "${file_path}.tmp" "$file_path"
+}
+
 ensure_public_key_in_authorized_keys() {
     local pub_path="$1"
     local home_dir="$2"
